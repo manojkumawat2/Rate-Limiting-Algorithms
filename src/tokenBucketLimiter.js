@@ -6,11 +6,13 @@ async function rateLimitUsingTokenBucket(userId, intervalInSeconds, maximumReque
     try {
         const cacheKey = `${userId}_requests_counter`;
         // Get the current token counter from Redis
-        const currentTokens = (await client.get(cacheKey)) || 0;
-        
-        if (currentTokens < maximumRequests) {
-            // If there are available tokens, decrement and proceed
-            await client.setEx(cacheKey, intervalInSeconds, currentTokens + 1);
+        const requestsCount = await client.incr(cacheKey);
+
+        if (requestsCount === 1) {
+            await client.expire(cacheKey, intervalInSeconds);
+        }
+
+        if (requestsCount <= maximumRequests) {
             return true;
         }
 
@@ -23,5 +25,4 @@ async function rateLimitUsingTokenBucket(userId, intervalInSeconds, maximumReque
     }
 }
 
-const ans = rateLimitUsingTokenBucket(1234, 60, 10);
-console.log(ans);
+module.exports = rateLimitUsingTokenBucket;
